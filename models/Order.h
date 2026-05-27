@@ -1,50 +1,75 @@
 #pragma once
-#include <iostream>
 #include <string>
-#include "Cart.h"
-#include "Customer.h"
-#include "../services/RouteManager.h"
+#include <vector>
+#include <iostream>
+#include <iomanip>
+#include <ctime>
+#include "FoodItem.h"
 
+// ============================================================================
+// OrderStatus - Enum Class for Type Safety
+// Using enum class instead of plain enum prevents implicit conversions
+// and provides scoped constants (OrderStatus::PLACED, not just PLACED).
+// ============================================================================
+enum class OrderStatus { PLACED, PREPARING, OUT_FOR_DELIVERY, DELIVERED };
+
+// ============================================================================
+// Order - Rich Data Model
+// OOP Concept: Composition - Order contains a vector of FoodItems.
+//              The Order "has-a" collection of items, not "is-a" FoodItem.
+// OOP Concept: Encapsulation - complex pricing logic and status management
+//              are hidden behind a clean public interface.
+// ============================================================================
 class Order {
 private:
-    Cart cart;
-    double taxRate = 0.05;
-    double deliveryFeePerKm = 1.50; 
+    int orderId;
+    std::string customerName;
+    std::string restaurantName;
+    std::vector<FoodItem> items;
+    double subtotal;
+    double tax;
+    double deliveryFee;
+    double total;
+    double distance;
+    int estimatedTimeMinutes;
+    OrderStatus status;
+    std::string deliveryPartnerName;
+    std::string timestamp;
+
+    // Static counter for auto-incrementing order IDs
+    static int nextOrderId;
 
 public:
-    void placeOrder(Customer& customer, Cart& userCart, RouteManager& map, std::string userLocation, std::string restaurantLocation) {
-        if (userCart.isEmpty()) {
-            std::cout << "❌ Cannot place an empty order.\n";
-            return;
-        }
+    Order();
+    Order(const std::string& customer, const std::string& restaurant,
+          const std::vector<FoodItem>& items, double subtotal, double tax,
+          double deliveryFee, double distance, int estTime,
+          const std::string& partnerName);
 
-        double distance = map.findShortestDistance(restaurantLocation, userLocation);
-        
-        if (distance < 0) {
-            std::cout << "❌ Delivery unavailable to this location.\n";
-            return;
-        }
+    // Getters - Encapsulation
+    int getOrderId() const;
+    std::string getCustomerName() const;
+    std::string getRestaurantName() const;
+    const std::vector<FoodItem>& getItems() const;
+    double getSubtotal() const;
+    double getTax() const;
+    double getDeliveryFee() const;
+    double getTotal() const;
+    double getDistance() const;
+    int getEstimatedTime() const;
+    OrderStatus getStatus() const;
+    std::string getStatusString() const;
+    std::string getDeliveryPartnerName() const;
+    std::string getTimestamp() const;
 
-        double subtotal = userCart.calculateSubtotal();
-        double tax = subtotal * taxRate;
-        double totalDeliveryFee = distance * deliveryFeePerKm;
-        double totalBill = subtotal + tax + totalDeliveryFee;
+    // Setters - controlled mutation
+    void setStatus(OrderStatus s);
+    void setOrderId(int id);
 
-        std::cout << "\n--- Checkout Summary ---\n";
-        std::cout << "Subtotal: $" << subtotal << "\n";
-        std::cout << "Taxes (5%): $" << tax << "\n";
-        std::cout << "Distance: " << distance << " km\n";
-        std::cout << "Delivery Fee: $" << totalDeliveryFee << "\n";
-        std::cout << "Total Bill: $" << totalBill << "\n";
+    // Display methods
+    void displaySummary() const;
+    void displayDetailed() const;
 
-        if (customer.getWalletBalance() >= totalBill) {
-            customer.addFunds(-totalBill);
-            std::cout << "\n✅ Order Placed Successfully!\n";
-            std::cout << "🚕 Assigning driver for the " << distance << " km route...\n";
-            std::cout << "Remaining Wallet Balance: $" << customer.getWalletBalance() << "\n";
-            userCart.clearCart();
-        } else {
-            std::cout << "\n❌ Payment Failed: Insufficient funds.\n";
-        }
-    }
+    // Operator Overloading: formatted stream output
+    friend std::ostream& operator<<(std::ostream& os, const Order& order);
 };

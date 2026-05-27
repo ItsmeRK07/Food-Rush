@@ -1,55 +1,37 @@
 #pragma once
-#include <iostream>
-#include <vector>
 #include <string>
+#include <vector>
+#include <iostream>
+#include <iomanip>
 #include "FoodItem.h"
 
+// ============================================================================
+// Cart - Shopping Cart Model
+// OOP Concept: Composition - contains a vector of FoodItems representing
+//              the items the customer wants to order.
+// OOP Concept: Encapsulation - addItem validates that items come from only
+//              one restaurant at a time, enforcing a business rule internally.
+// ============================================================================
 class Cart {
 private:
     std::vector<FoodItem> items;
     std::string currentRestaurant;
 
 public:
-    Cart() : currentRestaurant("") {}
+    Cart();
 
-    // Add item with Restaurant validation
-    bool addItem(FoodItem item, std::string restaurantName) {
-        if (items.empty()) {
-            currentRestaurant = restaurantName; // Set the cart's restaurant lock
-        } else if (currentRestaurant != restaurantName) {
-            std::cout << "❌ Error: You can only order from one restaurant at a time. Clear cart to switch.\n";
-            return false;
-        }
+    // Cart operations with built-in validation (Encapsulation)
+    bool addItem(const FoodItem& item, const std::string& restaurantName);
+    bool removeItem(int index);
+    double calculateSubtotal() const;
+    void displayCart() const;
+    void clearCart();
+    bool isEmpty() const;
 
-        items.push_back(item);
-        std::cout << "🛒 Added " << item.getName() << " to cart.\n";
-        return true;
-    }
+    // Getters - Encapsulation
+    const std::vector<FoodItem>& getItems() const;
+    std::string getCurrentRestaurant() const;
 
-    double calculateSubtotal() const {
-        double total = 0.0;
-        for (const auto& item : items) {
-            total += item.getPrice();
-        }
-        return total;
-    }
-
-    void displayCart() const {
-        if (items.empty()) {
-            std::cout << "Your cart is empty.\n";
-            return;
-        }
-        std::cout << "\n--- Your Cart (" << currentRestaurant << ") ---\n";
-        for (const auto& item : items) {
-            std::cout << "- " << item.getName() << " : $" << item.getPrice() << "\n";
-        }
-        std::cout << "Subtotal: $" << calculateSubtotal() << "\n";
-    }
-
-    void clearCart() {
-        items.clear();
-        currentRestaurant = "";
-    }
-    
-    bool isEmpty() const { return items.empty(); }
+    // Operator Overloading: formatted stream output
+    friend std::ostream& operator<<(std::ostream& os, const Cart& cart);
 };

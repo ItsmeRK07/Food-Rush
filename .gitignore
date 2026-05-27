@@ -1,1 +1,14 @@
+# Build artifacts
 *.exe
+*.o
+*.obj
+build/
+
+# IDE files
+.vscode/
+*.swp
+*.swo
+*~
+
+# Temp files
+tempCodeRunnerFile.cpp

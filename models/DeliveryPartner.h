@@ -1,19 +1,36 @@
 #pragma once
 #include <iostream>
-#include "User.h" // Inherits from User
+#include <iomanip>
+#include "User.h"
 
+// ============================================================================
+// DeliveryPartner - Derived from User
+// OOP Concept: Inheritance - inherits authentication from User base class.
+// OOP Concept: Polymorphism - overrides displayDashboard() and toString()
+//              so a User* pointing to a DeliveryPartner resolves correctly.
+// ============================================================================
 class DeliveryPartner : public User {
 private:
     bool isAvailable;
+    double rating;
+    int totalDeliveries;
+    int currentOrderId;
 
 public:
-    DeliveryPartner(std::string uName, std::string pass) 
-        : User(uName, pass), isAvailable(true) {}
+    DeliveryPartner(const std::string& uName, const std::string& pass);
 
-    void setAvailability(bool status) { isAvailable = status; }
+    // Getters - Encapsulation
+    bool getIsAvailable() const;
+    double getRating() const;
+    int getTotalDeliveries() const;
+    int getCurrentOrderId() const;
 
-    void displayDashboard() override {
-        std::cout << "Welcome Partner: " << username << " | Status: " 
-                  << (isAvailable ? "Available" : "Busy") << "\n";
-    }
+    // Delivery lifecycle
+    void assignOrder(int orderId);
+    void completeDelivery();
+    void addRating(double newRating);
+
+    // Polymorphism - override base class virtual functions
+    void displayDashboard() override;
+    std::string toString() const override;
 };
