@@ -1,0 +1,13 @@
+# Campus Road Network
+# Format: locationA,locationB,distance_km
+Driver Hub,Main Gate,1.0
+Main Gate,Food Court,1.5
+Main Gate,Library Square,2.0
+Food Court,PRP Block,0.8
+Food Court,Men's Hostel,2.5
+PRP Block,Men's Hostel,3.0
+PRP Block,Tech Park,1.2
+Library Square,Tech Park,0.5
+Tech Park,Sports Complex,1.8
+Sports Complex,Men's Hostel,2.0
+Library Square,Sports Complex,1.5

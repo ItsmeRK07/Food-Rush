@@ -11,7 +11,7 @@
 // Using enum class instead of plain enum prevents implicit conversions
 // and provides scoped constants (OrderStatus::PLACED, not just PLACED).
 // ============================================================================
-enum class OrderStatus { PLACED, PREPARING, OUT_FOR_DELIVERY, DELIVERED };
+enum class OrderStatus { PLACED, PREPARING, OUT_FOR_DELIVERY, DELIVERED, CANCELLED };
 
 // ============================================================================
 // Order - Rich Data Model
@@ -65,6 +65,9 @@ public:
     // Setters - controlled mutation
     void setStatus(OrderStatus s);
     void setOrderId(int id);
+
+    // Static method to sync nextOrderId after loading from file
+    static void setNextOrderId(int id);
 
     // Display methods
     void displaySummary() const;

@@ -1,0 +1,38 @@
+# FoodRush Restaurant & Menu Data
+# Format: RESTAURANT,id,name,location
+# Format: ITEM,restaurant_id,item_id,name,price,is_veg(1/0)
+
+RESTAURANT,1,Campus Kitchen,Food Court
+ITEM,1,1,Paneer Lababdar,180.00,1
+ITEM,1,2,Butter Chicken,220.00,0
+ITEM,1,3,Dal Makhani,150.00,1
+ITEM,1,4,Garlic Naan,40.00,1
+ITEM,1,5,Jeera Rice,80.00,1
+
+RESTAURANT,2,Dragon Wok,Tech Park
+ITEM,2,6,Veg Hakka Noodles,120.00,1
+ITEM,2,7,Chicken Fried Rice,160.00,0
+ITEM,2,8,Veg Manchurian,140.00,1
+ITEM,2,9,Spring Rolls,100.00,1
+ITEM,2,10,Chilli Chicken,180.00,0
+
+RESTAURANT,3,South Express,Library Square
+ITEM,3,11,Masala Dosa,90.00,1
+ITEM,3,12,Idli Sambar,60.00,1
+ITEM,3,13,Medu Vada,70.00,1
+ITEM,3,14,Uttapam,100.00,1
+ITEM,3,15,Filter Coffee,30.00,1
+
+RESTAURANT,4,Burger Junction,Sports Complex
+ITEM,4,16,Classic Veg Burger,110.00,1
+ITEM,4,17,Chicken Burger,140.00,0
+ITEM,4,18,French Fries,80.00,1
+ITEM,4,19,Chocolate Shake,90.00,1
+ITEM,4,20,Chicken Wrap,130.00,0
+
+RESTAURANT,5,Chai & More,Main Gate
+ITEM,5,21,Masala Chai,20.00,1
+ITEM,5,22,Samosa,15.00,1
+ITEM,5,23,Maggi,40.00,1
+ITEM,5,24,Veg Sandwich,60.00,1
+ITEM,5,25,Cold Coffee,50.00,1

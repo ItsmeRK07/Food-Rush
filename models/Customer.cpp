@@ -32,6 +32,11 @@ bool Customer::deductFunds(double amount) {
     return true;
 }
 
+// Silently set wallet balance (used when loading from file, avoids print messages)
+void Customer::setWalletBalance(double balance) {
+    walletBalance = balance;
+}
+
 double Customer::getWalletBalance() const { return walletBalance; }
 
 // Composition: Order is stored by value in the history vector

@@ -1,15 +1,77 @@
 #include "RestaurantManager.h"
 #include <iomanip>
 
-// Constructor: Initializes the restaurant collection
+// Constructor: Loads restaurants from CSV file, with hardcoded fallback
 // Composition: RestaurantManager "has-a" collection of Restaurant objects
 RestaurantManager::RestaurantManager() {
-    initializeRestaurants();
+    loadFromFile("data/restaurants.csv");
+    if (restaurants.empty()) {
+        loadDefaults();
+    }
 }
 
-// Encapsulation: Restaurant data setup is hidden as a private implementation detail
-// Creates 5 hardcoded restaurants with their full menus
-void RestaurantManager::initializeRestaurants() {
+// Loads restaurant and menu data from a CSV file
+// Format: RESTAURANT,id,name,location   and   ITEM,restaurant_id,item_id,name,price,is_veg
+void RestaurantManager::loadFromFile(const std::string& filename) {
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        return; // File not found — caller will use loadDefaults()
+    }
+
+    std::string line;
+    while (std::getline(file, line)) {
+        // Skip empty lines and comments
+        if (line.empty() || line[0] == '#') continue;
+
+        std::istringstream iss(line);
+        std::string type;
+        std::getline(iss, type, ',');
+
+        if (type == "RESTAURANT") {
+            std::string idStr, name, location;
+            std::getline(iss, idStr, ',');
+            std::getline(iss, name, ',');
+            std::getline(iss, location);
+
+            try {
+                int id = std::stoi(idStr);
+                restaurants.push_back(Restaurant(id, name, location));
+            } catch (...) {
+                continue; // Skip malformed restaurant line
+            }
+        }
+        else if (type == "ITEM") {
+            std::string restIdStr, itemIdStr, name, priceStr, vegStr;
+            std::getline(iss, restIdStr, ',');
+            std::getline(iss, itemIdStr, ',');
+            std::getline(iss, name, ',');
+            std::getline(iss, priceStr, ',');
+            std::getline(iss, vegStr);
+
+            try {
+                int restId = std::stoi(restIdStr);
+                int itemId = std::stoi(itemIdStr);
+                double price = std::stod(priceStr);
+                bool isVeg = (vegStr == "1");
+
+                // Find the restaurant and add the item
+                for (auto& r : restaurants) {
+                    if (r.getId() == restId) {
+                        r.addFoodItem(FoodItem(itemId, name, price, isVeg));
+                        break;
+                    }
+                }
+            } catch (...) {
+                continue; // Skip malformed item line
+            }
+        }
+    }
+
+    file.close();
+}
+
+// Encapsulation: Hardcoded fallback data — used when CSV file is missing
+void RestaurantManager::loadDefaults() {
     // ─── Restaurant 1: Campus Kitchen ───────────────────────
     Restaurant r1(1, "Campus Kitchen", "Food Court");
     r1.addFoodItem(FoodItem(1, "Paneer Lababdar", 180.00, true));
@@ -128,4 +190,8 @@ void RestaurantManager::displayRestaurantMenu(int restaurantId) const {
     } else {
         std::cout << "\n  \u274C Restaurant not found!" << std::endl;
     }
+}
+
+int RestaurantManager::getRestaurantCount() const {
+    return static_cast<int>(restaurants.size());
 }

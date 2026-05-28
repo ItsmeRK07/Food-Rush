@@ -23,6 +23,7 @@ public:
     // Wallet management
     void addFunds(double amount);
     bool deductFunds(double amount);
+    void setWalletBalance(double balance);  // Silent setter for loading from file
     double getWalletBalance() const;
 
     // Order history (Composition)

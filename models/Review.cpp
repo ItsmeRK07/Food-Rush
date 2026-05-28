@@ -20,13 +20,8 @@ Review::Review(const std::string& reviewer, const std::string& restaurant,
     // Generate timestamp at review creation time
     time_t now = time(0);
     char buf[80];
-    struct tm timeInfo;
-#ifdef _WIN32
-    localtime_s(&timeInfo, &now);
-#else
-    localtime_r(&now, &timeInfo);
-#endif
-    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M", &timeInfo);
+    struct tm* timeInfo = localtime(&now);
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M", timeInfo);
     timestamp = buf;
 }
 

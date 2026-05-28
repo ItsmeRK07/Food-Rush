@@ -37,13 +37,8 @@ Order::Order(const std::string& customer, const std::string& restaurant,
     // Generate timestamp
     time_t now = time(0);
     char buf[80];
-    struct tm timeInfo;
-#ifdef _WIN32
-    localtime_s(&timeInfo, &now);
-#else
-    localtime_r(&now, &timeInfo);
-#endif
-    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M", &timeInfo);
+    struct tm* timeInfo = localtime(&now);
+    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M", timeInfo);
     timestamp = buf;
 }
 
@@ -73,6 +68,8 @@ std::string Order::getStatusString() const {
             return "\xF0\x9F\x9A\x97 Out for Delivery";
         case OrderStatus::DELIVERED:
             return "\xE2\x9C\x85 Delivered";
+        case OrderStatus::CANCELLED:
+            return "\xE2\x9D\x8C Cancelled";
         default:
             return "Unknown";
     }
@@ -81,6 +78,7 @@ std::string Order::getStatusString() const {
 // Setters - controlled mutation
 void Order::setStatus(OrderStatus s) { status = s; }
 void Order::setOrderId(int id) { orderId = id; }
+void Order::setNextOrderId(int id) { nextOrderId = id; }
 
 // One-line summary for order history lists
 void Order::displaySummary() const {

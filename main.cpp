@@ -1,9 +1,15 @@
 #include <iostream>
 #include <string>
 #include <memory>
-#include <filesystem>
 #include <vector>
 #include <algorithm>
+#ifdef _WIN32
+#include <direct.h>
+#define MKDIR(dir) _mkdir(dir)
+#else
+#include <sys/stat.h>
+#define MKDIR(dir) mkdir(dir, 0755)
+#endif
 #include "models/Customer.h"
 #include "models/Restaurant.h"
 #include "models/Cart.h"
@@ -16,6 +22,7 @@
 #include "services/OrderManager.h"
 #include "utils/InputValidator.h"
 #include "utils/Display.h"
+#include "utils/FoodRushException.h"
 
 // ─────────────────────────────────────────────────────────────
 //  Main Menu Loop — the core interactive session for a logged-in user
@@ -42,10 +49,11 @@ void mainMenuLoop(std::unique_ptr<Customer>& customer, AuthService& auth,
         std::cout << "   7.  \xE2\xAD\x90 Rate a Restaurant\n";
         std::cout << "   8.  \xF0\x9F\x92\xB0 Add Funds to Wallet\n";
         std::cout << "   9.  \xF0\x9F\x91\xA4 My Dashboard\n";
-        std::cout << "   10. \xF0\x9F\x9A\xAA Logout\n";
+        std::cout << "   10. \xE2\x9D\x8C Cancel Order\n";
+        std::cout << "   11. \xF0\x9F\x9A\xAA Logout\n";
         Display::showDivider();
 
-        int choice = InputValidator::getValidInt("  Enter choice", 1, 10);
+        int choice = InputValidator::getValidInt("  Enter choice", 1, 11);
 
         switch (choice) {
 
@@ -56,7 +64,7 @@ void mainMenuLoop(std::unique_ptr<Customer>& customer, AuthService& auth,
             restaurantMgr.displayAllRestaurants();
 
             int restId = InputValidator::getValidInt(
-                "\n  Select restaurant ID (0 to go back)", 0, 5);
+                "\n  Select restaurant ID (0 to go back)", 0, restaurantMgr.getRestaurantCount());
             if (restId == 0) break;
 
             Restaurant* rest = restaurantMgr.getRestaurant(restId);
@@ -65,7 +73,7 @@ void mainMenuLoop(std::unique_ptr<Customer>& customer, AuthService& auth,
             bool browsing = true;
             while (browsing) {
                 Display::clearScreen();
-                Display::showSubHeader(rest->getName() + " — Menu");
+                Display::showSubHeader(rest->getName() + " \xE2\x80\x94 Menu");
                 rest->displayMenu();
 
                 std::cout << "\n  1. \xF0\x9F\x9B\x92 Add item to cart\n";
@@ -85,16 +93,16 @@ void mainMenuLoop(std::unique_ptr<Customer>& customer, AuthService& auth,
                     int itemNum = InputValidator::getValidInt(
                         "  Enter item number", 1, static_cast<int>(menu.size()));
                     FoodItem selectedItem = menu[itemNum - 1];
-                    if (cart.addItem(selectedItem, rest->getName())) {
-                        Display::showSuccess(selectedItem.getName() + " added to cart!");
-                    } else {
-                        Display::showError("Cannot add items from different restaurants! Clear your cart first.");
+                    try {
+                        cart.addItem(selectedItem, rest->getName());
+                    } catch (const ValidationException& e) {
+                        Display::showError(e.what());
                     }
                     Display::pressEnterToContinue();
                 }
                 else if (sub == 2) {
                     Display::clearScreen();
-                    Display::showSubHeader("Vegetarian Items — " + rest->getName());
+                    Display::showSubHeader("Vegetarian Items \xE2\x80\x94 " + rest->getName());
                     auto vegItems = rest->filterVeg();
                     if (vegItems.empty()) {
                         Display::showInfo("No vegetarian items found.");
@@ -110,9 +118,15 @@ void mainMenuLoop(std::unique_ptr<Customer>& customer, AuthService& auth,
                 }
                 else if (sub == 3) {
                     int order = InputValidator::getValidInt(
-                        "  1. Ascending  2. Descending — Choice", 1, 2);
-                    rest->sortMenuByPrice(order == 1);
-                    Display::showSuccess("Menu sorted!");
+                        "  1. Ascending  2. Descending \xE2\x80\x94 Choice", 1, 2);
+                    auto sortedMenu = rest->sortMenuByPrice(order == 1);
+                    Display::clearScreen();
+                    Display::showSubHeader(rest->getName() + " \xE2\x80\x94 Sorted by Price");
+                    int idx = 1;
+                    for (auto& item : sortedMenu) {
+                        std::cout << "   " << std::left << std::setw(4) << idx++
+                                  << item << "\n";
+                    }
                     Display::pressEnterToContinue();
                 }
                 else {
@@ -160,37 +174,54 @@ void mainMenuLoop(std::unique_ptr<Customer>& customer, AuthService& auth,
                 int pick = InputValidator::getValidInt(
                     "  Enter item number", 1, static_cast<int>(allResults.size()));
                 auto& sr = allResults[pick - 1];
-                if (cart.addItem(sr.item, sr.restaurantName)) {
-                    Display::showSuccess(sr.item.getName() + " added to cart!");
-                } else {
-                    Display::showError("Cannot add items from different restaurants! Clear your cart first.");
+                try {
+                    cart.addItem(sr.item, sr.restaurantName);
+                } catch (const ValidationException& e) {
+                    Display::showError(e.what());
                 }
             }
             Display::pressEnterToContinue();
             break;
         }
 
-        // ── 3. View Cart ─────────────────────────────────────
+        // ── 3. View Cart (with quantity controls) ────────────
         case 3: {
             Display::clearScreen();
             Display::showHeader("Your Cart");
             cart.displayCart();
 
             if (!cart.isEmpty()) {
-                std::cout << "\n  1. \xE2\x9D\x8C Remove item\n";
-                std::cout << "  2. \xF0\x9F\x97\x91\xEF\xB8\x8F  Clear cart\n";
-                std::cout << "  3. \xE2\xAC\x85 Back\n";
-                int sub = InputValidator::getValidInt("  Choice", 1, 3);
-                if (sub == 1) {
-                    int idx = InputValidator::getValidInt(
-                        "  Enter item number to remove", 1,
-                        static_cast<int>(cart.getItems().size()));
-                    if (cart.removeItem(idx - 1)) {
-                        Display::showSuccess("Item removed.");
-                    } else {
-                        Display::showError("Could not remove item.");
+                std::cout << "\n  1. \xE2\x9E\x95 Increment item qty\n";
+                std::cout << "  2. \xE2\x9E\x96 Decrement item qty\n";
+                std::cout << "  3. \xE2\x9D\x8C Remove item entirely\n";
+                std::cout << "  4. \xF0\x9F\x97\x91\xEF\xB8\x8F  Clear cart\n";
+                std::cout << "  5. \xE2\xAC\x85 Back\n";
+                int sub = InputValidator::getValidInt("  Choice", 1, 5);
+
+                if (sub == 1 || sub == 2 || sub == 3) {
+                    // Build a numbered list of items for selection
+                    auto& cartItems = cart.getItems();
+                    std::vector<FoodItem> itemList;
+                    for (auto it = cartItems.begin(); it != cartItems.end(); ++it) {
+                        itemList.push_back(it->first);
                     }
-                } else if (sub == 2) {
+
+                    int pick = InputValidator::getValidInt(
+                        "  Enter item number", 1, static_cast<int>(itemList.size()));
+                    const FoodItem& selected = itemList[pick - 1];
+
+                    try {
+                        if (sub == 1) {
+                            cart.incrementItem(selected);
+                        } else if (sub == 2) {
+                            cart.decrementItem(selected);
+                        } else {
+                            cart.removeItem(selected);
+                        }
+                    } catch (const ValidationException& e) {
+                        Display::showError(e.what());
+                    }
+                } else if (sub == 4) {
                     cart.clearCart();
                     Display::showSuccess("Cart cleared!");
                 }
@@ -199,7 +230,7 @@ void mainMenuLoop(std::unique_ptr<Customer>& customer, AuthService& auth,
             break;
         }
 
-        // ── 4. Checkout ──────────────────────────────────────
+        // ── 4. Checkout (with real-time delivery simulation) ─
         case 4: {
             Display::clearScreen();
             Display::showHeader("Checkout");
@@ -235,7 +266,7 @@ void mainMenuLoop(std::unique_ptr<Customer>& customer, AuthService& auth,
             // Find restaurant location
             std::string currentRest = cart.getCurrentRestaurant();
             std::string restaurantLocation;
-            for (int i = 1; i <= 5; ++i) {
+            for (int i = 1; i <= restaurantMgr.getRestaurantCount(); ++i) {
                 Restaurant* r = restaurantMgr.getRestaurant(i);
                 if (r && r->getName() == currentRest) {
                     restaurantLocation = r->getLocation();
@@ -243,70 +274,73 @@ void mainMenuLoop(std::unique_ptr<Customer>& customer, AuthService& auth,
                 }
             }
 
-            // Show route preview
-            Display::showSubHeader("Delivery Route");
-            campusMap.displayRoute(restaurantLocation, userLocation);
+            try {
+                // Show route preview
+                Display::showSubHeader("Delivery Route");
+                campusMap.displayRoute(restaurantLocation, userLocation);
 
-            double distance = campusMap.findShortestDistance(restaurantLocation, userLocation);
-            double estTime  = campusMap.estimateDeliveryTime(distance);
+                double distance = campusMap.findShortestDistance(restaurantLocation, userLocation);
+                double estTime  = campusMap.estimateDeliveryTime(distance);
 
-            // Order cost preview
-            double subtotal    = cart.calculateSubtotal();
-            double tax         = subtotal * 0.05;
-            double deliveryFee = 10.0 + (distance * 5.0);
-            double total       = subtotal + tax + deliveryFee;
+                // Order cost preview
+                double subtotal    = cart.calculateSubtotal();
+                double tax         = subtotal * 0.05;
+                double deliveryFee = 10.0 + (distance * 5.0);
+                double total       = subtotal + tax + deliveryFee;
 
-            Display::showSubHeader("Order Summary");
-            std::cout << "    Subtotal      : \xE2\x82\xB9" << subtotal << "\n";
-            std::cout << "    Tax (5%)      : \xE2\x82\xB9" << tax << "\n";
-            std::cout << "    Delivery Fee  : \xE2\x82\xB9" << deliveryFee << "\n";
-            Display::showDivider();
-            std::cout << "    \xF0\x9F\x92\xB5 TOTAL     : \xE2\x82\xB9" << total << "\n";
-            std::cout << "    \xF0\x9F\x93\x8F Distance  : " << distance << " km\n";
-            std::cout << "    \xE2\x8F\xB1 Est. Time : " << estTime << " min\n\n";
+                Display::showSubHeader("Order Summary");
+                std::cout << "    Subtotal      : \xE2\x82\xB9" << subtotal << "\n";
+                std::cout << "    Tax (5%)      : \xE2\x82\xB9" << tax << "\n";
+                std::cout << "    Delivery Fee  : \xE2\x82\xB9" << deliveryFee << "\n";
+                Display::showDivider();
+                std::cout << "    \xF0\x9F\x92\xB5 TOTAL     : \xE2\x82\xB9" << total << "\n";
+                std::cout << "    \xF0\x9F\x93\x8F Distance  : " << distance << " km\n";
+                std::cout << "    \xE2\x8F\xB1 Est. Time : " << estTime << " min\n\n";
 
-            if (customer->getWalletBalance() < total) {
-                Display::showError("Insufficient wallet balance! You need \xE2\x82\xB9" +
-                                   std::to_string(total) + " but have \xE2\x82\xB9" +
-                                   std::to_string(customer->getWalletBalance()));
-                Display::pressEnterToContinue();
-                break;
-            }
+                if (customer->getWalletBalance() < total) {
+                    Display::showError("Insufficient wallet balance! You need \xE2\x82\xB9" +
+                                       std::to_string(total) + " but have \xE2\x82\xB9" +
+                                       std::to_string(customer->getWalletBalance()));
+                    Display::pressEnterToContinue();
+                    break;
+                }
 
-            if (!InputValidator::confirmAction("  Confirm order?")) {
-                Display::showInfo("Order cancelled.");
-                Display::pressEnterToContinue();
-                break;
-            }
+                if (!InputValidator::confirmAction("  Confirm order?")) {
+                    Display::showInfo("Order cancelled.");
+                    Display::pressEnterToContinue();
+                    break;
+                }
 
-            // Place order
-            Order* order = orderMgr.placeOrder(
-                *customer, cart, campusMap, deliveryService,
-                auth, userLocation, restaurantLocation, currentRest);
+                // Place order
+                Order* order = orderMgr.placeOrder(
+                    *customer, cart, campusMap, deliveryService,
+                    auth, userLocation, restaurantLocation, currentRest);
 
-            if (order) {
-                Display::showSuccess("Order placed successfully!");
-                std::cout << "\n";
+                if (order) {
+                    Display::showSuccess("Order placed successfully!");
+                    std::cout << "\n";
 
-                // Simulate order progression
-                order->setStatus(OrderStatus::PREPARING);
-                Display::showInfo("\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x8D\xB3 Your food is being prepared...");
+                    // ⏱️ Real-Time Delivery Simulation with progress bars
+                    order->setStatus(OrderStatus::PREPARING);
+                    Display::showProgressBar("\xF0\x9F\x91\xA8\xE2\x80\x8D\xF0\x9F\x8D\xB3 Preparing your order...", 3);
+                    Display::showSuccess("Food is ready!");
 
-                order->setStatus(OrderStatus::OUT_FOR_DELIVERY);
-                Display::showInfo("\xF0\x9F\x9A\xB4 Your order is out for delivery!");
+                    order->setStatus(OrderStatus::OUT_FOR_DELIVERY);
+                    Display::showProgressBar("\xF0\x9F\x9A\xB4 Out for delivery...", 4);
+                    Display::showInfo("Almost there!");
 
-                order->setStatus(OrderStatus::DELIVERED);
-                Display::showSuccess("\xE2\x9C\x85 Order delivered! Enjoy your meal! \xF0\x9F\x8E\x89");
+                    Display::showProgressBar("\xF0\x9F\x93\x8D Arriving at your location...", 2);
+                    order->setStatus(OrderStatus::DELIVERED);
+                    Display::showSuccess("\xE2\x9C\x85 Order delivered! Enjoy your meal! \xF0\x9F\x8E\x89");
 
-                order->displaySummary();
-
-                // Deduct funds & update
-                customer->deductFunds(order->getTotal());
-                auth.updateWalletBalance(customer->getUsername(), customer->getWalletBalance());
-
-                cart.clearCart();
-            } else {
-                Display::showError("Failed to place order. Please try again.");
+                    order->displaySummary();
+                }
+            } catch (const RouteException& e) {
+                Display::showError(e.what());
+            } catch (const OrderException& e) {
+                Display::showError(e.what());
+            } catch (const FoodRushException& e) {
+                Display::showError(e.what());
             }
             Display::pressEnterToContinue();
             break;
@@ -359,7 +393,8 @@ void mainMenuLoop(std::unique_ptr<Customer>& customer, AuthService& auth,
             restaurantMgr.displayAllRestaurants();
 
             int restId = InputValidator::getValidInt(
-                "\n  Select restaurant to rate (1-5)", 1, 5);
+                "\n  Select restaurant to rate (1-" + std::to_string(restaurantMgr.getRestaurantCount()) + ")",
+                1, restaurantMgr.getRestaurantCount());
             Restaurant* rest = restaurantMgr.getRestaurant(restId);
             if (!rest) {
                 Display::showError("Restaurant not found.");
@@ -388,10 +423,14 @@ void mainMenuLoop(std::unique_ptr<Customer>& customer, AuthService& auth,
             std::cout << "  Current balance: \xE2\x82\xB9" << customer->getWalletBalance() << "\n\n";
 
             double amount = InputValidator::getValidDouble(
-                "  Enter amount to add (\xE2\x82\xB91 - \xE2\x82\xB9100000)", 1.0, 100000.0);
+                "  Enter amount to add", 1.0, 100000.0);
 
             customer->addFunds(amount);
-            auth.updateWalletBalance(customer->getUsername(), customer->getWalletBalance());
+            try {
+                auth.updateWalletBalance(customer->getUsername(), customer->getWalletBalance());
+            } catch (const AuthException& e) {
+                Display::showWarning(e.what());
+            }
 
             Display::showSuccess("Added \xE2\x82\xB9" + std::to_string(amount) +
                                  " | New balance: \xE2\x82\xB9" +
@@ -416,9 +455,48 @@ void mainMenuLoop(std::unique_ptr<Customer>& customer, AuthService& auth,
             break;
         }
 
-        // ── 10. Logout ───────────────────────────────────────
+        // ── 10. Cancel Order ─────────────────────────────────
         case 10: {
-            auth.updateWalletBalance(customer->getUsername(), customer->getWalletBalance());
+            Display::clearScreen();
+            Display::showHeader("Cancel Order");
+
+            auto orders = orderMgr.getOrderHistory(customer->getUsername());
+            if (orders.empty()) {
+                Display::showInfo("No orders to cancel.");
+                Display::pressEnterToContinue();
+                break;
+            }
+
+            // Show cancellable orders
+            Display::showSubHeader("Your Orders");
+            for (auto& o : orders) {
+                o.displaySummary();
+            }
+
+            int oid = InputValidator::getValidInt("\n  Enter Order ID to cancel (0 to go back)", 0, 99999);
+            if (oid == 0) break;
+
+            try {
+                orderMgr.cancelOrder(oid, *customer, auth, deliveryService);
+                Display::showSuccess("Order #" + std::to_string(oid) + " cancelled! Refund added to wallet.");
+                std::cout << "  \xF0\x9F\x92\xB0 New wallet balance: \xE2\x82\xB9"
+                          << customer->getWalletBalance() << "\n";
+            } catch (const OrderException& e) {
+                Display::showError(e.what());
+            } catch (const FoodRushException& e) {
+                Display::showError(e.what());
+            }
+            Display::pressEnterToContinue();
+            break;
+        }
+
+        // ── 11. Logout ───────────────────────────────────────
+        case 11: {
+            try {
+                auth.updateWalletBalance(customer->getUsername(), customer->getWalletBalance());
+            } catch (const AuthException& e) {
+                Display::showWarning(e.what());
+            }
             Display::showSuccess("Wallet saved. Goodbye, " + customer->getUsername() + "! \xF0\x9F\x91\x8B");
             Display::pressEnterToContinue();
             return;
@@ -436,28 +514,35 @@ void mainMenuLoop(std::unique_ptr<Customer>& customer, AuthService& auth,
 //  main() — Application entry point
 // ─────────────────────────────────────────────────────────────
 int main() {
+    // Enable ANSI color codes on Windows terminal
+    Display::enableAnsiOnWindows();
+
     // 1. Ensure data directory exists
-    std::filesystem::create_directories("data");
+    MKDIR("data");
 
     // 2. Initialize services
     RouteManager campusMap;
-    RestaurantManager restaurantMgr;
+    RestaurantManager restaurantMgr;   // Loads from data/restaurants.csv (or defaults)
     DeliveryService deliveryService;
     AuthService auth;
     OrderManager orderMgr;
 
-    // 3. Setup campus road network
-    campusMap.addRoad("Driver Hub", "Main Gate", 1.0);
-    campusMap.addRoad("Main Gate", "Food Court", 1.5);
-    campusMap.addRoad("Main Gate", "Library Square", 2.0);
-    campusMap.addRoad("Food Court", "PRP Block", 0.8);
-    campusMap.addRoad("Food Court", "Men's Hostel", 2.5);
-    campusMap.addRoad("PRP Block", "Men's Hostel", 3.0);
-    campusMap.addRoad("PRP Block", "Tech Park", 1.2);
-    campusMap.addRoad("Library Square", "Tech Park", 0.5);
-    campusMap.addRoad("Tech Park", "Sports Complex", 1.8);
-    campusMap.addRoad("Sports Complex", "Men's Hostel", 2.0);
-    campusMap.addRoad("Library Square", "Sports Complex", 1.5);
+    // 3. Load campus road network from file (with hardcoded fallback)
+    campusMap.loadFromFile("data/campus_map.csv");
+    if (!campusMap.hasLocations()) {
+        // Fallback: hardcoded campus road network
+        campusMap.addRoad("Driver Hub", "Main Gate", 1.0);
+        campusMap.addRoad("Main Gate", "Food Court", 1.5);
+        campusMap.addRoad("Main Gate", "Library Square", 2.0);
+        campusMap.addRoad("Food Court", "PRP Block", 0.8);
+        campusMap.addRoad("Food Court", "Men's Hostel", 2.5);
+        campusMap.addRoad("PRP Block", "Men's Hostel", 3.0);
+        campusMap.addRoad("PRP Block", "Tech Park", 1.2);
+        campusMap.addRoad("Library Square", "Tech Park", 0.5);
+        campusMap.addRoad("Tech Park", "Sports Complex", 1.8);
+        campusMap.addRoad("Sports Complex", "Men's Hostel", 2.0);
+        campusMap.addRoad("Library Square", "Sports Complex", 1.5);
+    }
 
     // 4. Load persistent data
     orderMgr.loadOrdersFromFile();
@@ -465,7 +550,7 @@ int main() {
     // Load saved reviews and attach them to restaurants
     auto allReviews = orderMgr.loadAllReviews();
     for (auto& review : allReviews) {
-        for (int i = 1; i <= 5; ++i) {
+        for (int i = 1; i <= restaurantMgr.getRestaurantCount(); ++i) {
             Restaurant* r = restaurantMgr.getRestaurant(i);
             if (r && r->getName() == review.getRestaurantName()) {
                 r->addReview(review);
@@ -496,10 +581,11 @@ int main() {
             std::string username = InputValidator::getValidString("  Username", 3);
             std::string password = InputValidator::getValidString("  Password (min 4 chars)", 4);
 
-            if (auth.registerCustomer(username, password)) {
+            try {
+                auth.registerCustomer(username, password);
                 Display::showSuccess("Account created successfully! You can now login. \xF0\x9F\x8E\x89");
-            } else {
-                Display::showError("Username already taken. Try a different one.");
+            } catch (const AuthException& e) {
+                Display::showError(e.what());
             }
             Display::pressEnterToContinue();
             break;
@@ -513,14 +599,14 @@ int main() {
             std::string username = InputValidator::getValidString("  Username", 1);
             std::string password = InputValidator::getValidString("  Password", 1);
 
-            auto customer = auth.loginCustomer(username, password);
-            if (customer) {
+            try {
+                auto customer = auth.loginCustomer(username, password);
                 Display::showSuccess("Welcome back, " + username + "! \xF0\x9F\x91\x8B");
                 Display::pressEnterToContinue();
                 mainMenuLoop(customer, auth, restaurantMgr, orderMgr,
                              campusMap, deliveryService);
-            } else {
-                Display::showError("Invalid username or password.");
+            } catch (const AuthException& e) {
+                Display::showError(e.what());
                 Display::pressEnterToContinue();
             }
             break;

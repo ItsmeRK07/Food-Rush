@@ -37,6 +37,11 @@ bool FoodItem::operator==(const FoodItem& other) const {
     return id == other.id;
 }
 
+// Operator Overloading: less-than for std::map key support
+bool FoodItem::operator<(const FoodItem& other) const {
+    return id < other.id;
+}
+
 // Operator Overloading: formatted stream output
 // Displays veg/non-veg indicator and right-aligned price in ₹
 std::ostream& operator<<(std::ostream& os, const FoodItem& item) {

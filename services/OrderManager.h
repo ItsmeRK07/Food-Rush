@@ -21,6 +21,7 @@ private:
     std::string ordersFile;
     std::string reviewsFile;
     double taxRate;
+    double baseDeliveryFee;
     double deliveryFeePerKm;
 
 public:
@@ -31,6 +32,10 @@ public:
                       DeliveryService& deliveryService, AuthService& authService,
                       const std::string& userLocation, const std::string& restaurantLocation,
                       const std::string& restaurantName);
+
+    // Order cancellation with auto-refund
+    bool cancelOrder(int orderId, Customer& customer, AuthService& authService,
+                     DeliveryService& deliveryService);
 
     std::vector<Order> getOrderHistory(const std::string& customerName) const;
     Order* getOrder(int orderId);

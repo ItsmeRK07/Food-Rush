@@ -6,6 +6,8 @@
 #include <queue>
 #include <limits>
 #include <algorithm>
+#include <fstream>
+#include <sstream>
 
 // DSA: Graph data structure with Dijkstra's Shortest Path Algorithm
 // Encapsulation: Graph representation hidden behind clean interface
@@ -18,8 +20,10 @@ private:
 
 public:
     void addRoad(const std::string& locationA, const std::string& locationB, double distance);
+    void loadFromFile(const std::string& filename);
     double findShortestDistance(const std::string& start, const std::string& destination);
     std::vector<std::string> findShortestPath(const std::string& start, const std::string& destination);
     int estimateDeliveryTime(double distanceKm) const;
     void displayRoute(const std::string& start, const std::string& destination);
+    bool hasLocations() const;
 };

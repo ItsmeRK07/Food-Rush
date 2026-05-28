@@ -33,6 +33,9 @@ public:
     // Operator Overloading: equality comparison by id
     bool operator==(const FoodItem& other) const;
 
+    // Operator Overloading: less-than comparison by id (for std::map key)
+    bool operator<(const FoodItem& other) const;
+
     // Operator Overloading: stream insertion for formatted display
     friend std::ostream& operator<<(std::ostream& os, const FoodItem& item);
 };
