@@ -1,11 +1,11 @@
 # 🍕 FoodRush — Food Delivery Backend System
 
-![C++17](https://img.shields.io/badge/C%2B%2B-17-blue?style=flat-square&logo=cplusplus)
+![C++14](https://img.shields.io/badge/C%2B%2B-14-blue?style=flat-square&logo=cplusplus)
 ![OOP](https://img.shields.io/badge/Design-OOP-green?style=flat-square)
 ![DSA](https://img.shields.io/badge/DSA-Dijkstra's%20Algorithm-orange?style=flat-square)
 ![CMake](https://img.shields.io/badge/Build-CMake-red?style=flat-square&logo=cmake)
 
-> A **terminal-based food delivery simulation** built in modern C++17 — designed to demonstrate core **Object-Oriented Programming** and **Data Structures & Algorithms** concepts through a real-world application.
+> A **terminal-based food delivery simulation** built in modern C++14 — designed to demonstrate core **Object-Oriented Programming** and **Data Structures & Algorithms** concepts through a real-world application.
 
 FoodRush simulates a campus food delivery ecosystem where users can browse restaurants, order food, track deliveries routed via shortest-path algorithms, and manage a virtual wallet — all from an interactive, emoji-rich command-line interface.
 
@@ -89,7 +89,9 @@ FoodRush/
 └── data/                     # Persistent data files
     ├── users.txt              # Registered user accounts
     ├── orders.txt             # Order history
-    └── reviews.txt            # Restaurant reviews
+    ├── reviews.txt            # Restaurant reviews
+    ├── restaurants.csv        # Restaurant & menu data
+    └── campus_map.csv         # Campus road network distances
 ```
 
 ---
@@ -98,22 +100,22 @@ FoodRush/
 
 ### Prerequisites
 
-- A C++17 compatible compiler (g++ 7+, MSVC 2017+, Clang 5+)
+- A C++14 compatible compiler (g++ 5+, MSVC 2015+, Clang 3.4+)
 - CMake 3.10+ (optional, for Method 2)
 
 ### Method 1: Direct Compilation
 
 ```bash
 # Linux / macOS
-g++ -std=c++17 -o FoodRush main.cpp models/*.cpp services/*.cpp utils/*.cpp
+g++ -std=c++14 -o FoodRush main.cpp models/*.cpp services/*.cpp utils/*.cpp
 ./FoodRush
 
 # Windows (MinGW)
-g++ -std=c++17 -o FoodRush.exe main.cpp models/*.cpp services/*.cpp utils/*.cpp
+g++ -std=c++14 -o FoodRush.exe main.cpp models/*.cpp services/*.cpp utils/*.cpp
 FoodRush.exe
 
 # Windows (MSVC Developer Command Prompt)
-cl /std:c++17 /EHsc /Fe:FoodRush.exe main.cpp models\*.cpp services\*.cpp utils\*.cpp
+cl /std:c++14 /EHsc /Fe:FoodRush.exe main.cpp models\*.cpp services\*.cpp utils\*.cpp
 FoodRush.exe
 ```
 
@@ -175,9 +177,9 @@ The delivery route system uses a weighted undirected graph representing the camp
 
 | Technology | Purpose |
 |---|---|
-| **C++17** | Core language with modern features (filesystem, structured bindings) |
-| **STL** | Containers (vector, unordered_map, priority_queue), algorithms |
-| **File I/O** | fstream-based data persistence |
+| **C++14** | Core language with backwards compatibility for older compilers |
+| **STL** | Containers (vector, map, unordered_map, priority_queue), algorithms |
+| **File I/O** | fstream-based data persistence (txt and csv parsing) |
 | **CMake** | Cross-platform build system |
 
 ---
